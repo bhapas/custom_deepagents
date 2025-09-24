@@ -1,0 +1,55 @@
+{
+    "name": "custom-deepagents",
+    "version": "1.0.0",
+    "description": "A TypeScript project to generate ingest pipelines for Elasticsearch",
+    "keywords": [
+        "typescript",
+        "node",
+        "langgraph"
+    ],
+    "license": "MIT",
+    "author": "bhapas",
+    "type": "commonjs",
+    "main": "dist/main.js",
+    "scripts": {
+        "build": "esbuild src/main.ts --platform=node --format=cjs --bundle --target=es2020 --outdir=dist",
+        "typecheck": "tsc --noEmit",
+        "start": "node dist/main.js",
+        "dev": "esbuild src/main.ts --platform=node --format=cjs --bundle --target=es2020 --outdir=dist --watch",
+        "start:full": "./start.sh"
+    },
+    "dependencies": {
+        "@elastic/elasticsearch": "^9.1.1",
+        "@langchain/aws": "^0.1.15",
+        "@langchain/core": "^0.3.75",
+        "@langchain/langgraph": "^0.4.9",
+        "zod": "^3.25.76"
+    },
+    "devDependencies": {
+        "@types/dotenv": "^6.1.1",
+        "@eslint/eslintrc": "^3.1.0",
+        "@eslint/js": "^9.19.0",
+        "@langchain/tavily": "^0.1.4",
+        "@tsconfig/recommended": "^1.0.8",
+        "@types/node": "^22.13.5",
+        "dotenv": "^17.2.2",
+        "eslint": "^9.19.0",
+        "eslint-config-prettier": "^8.8.0",
+        "eslint-plugin-import": "^2.27.5",
+        "eslint-plugin-no-instanceof": "^1.0.1",
+        "eslint-plugin-prettier": "^4.2.1",
+        "globals": "^15.0.0",
+        "prettier": "^3.6.2",
+        "typescript": "^5",
+        "esbuild": "^0.21.5",
+        "typescript-eslint": "^8.22.0"
+    },
+      "resolutions": {
+        "@langchain/langgraph": ">=0.2.53",
+        "@langchain/core": ">=0.3.0"
+      },
+      "files": [
+        "dist/**/*"
+      ],
+      "packageManager": "yarn@1.22.22"
+}

@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "entry": "src/main.ts",
+  "state": "src/state.ts",
+  "agents": [
+    {
+      "name": "integration_supervisor",
+      "path": "src/agents/integrationAgent.ts",
+      "type": "react"
+    },
+    {
+      "name": "ingest_pipeline_generator",
+      "path": "src/agents/ingest_pipeline_generator.ts",
+      "type": "subagent"
+    },
+    {
+      "name": "logs_analyzer",
+      "path": "src/agents/logs_analyzer.ts",
+      "type": "subagent"
+    }
+    
+  ],
+  "tools": [
+    {
+      "name": "validate_pipeline_all_samples",
+      "path": "src/tools/ingest_pipeline_validator.ts"
+    }
+  ],
+  "settings": {
+    "typescript": true,
+    "outputDir": "dist",
+    "strict": true
+  }
+}
+
+
