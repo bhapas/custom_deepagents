@@ -9,12 +9,7 @@ import { Command } from "@langchain/langgraph";
 import { z } from "zod";
 import { logMem } from "../logging";
 import { sampleService } from "../sampleService";
-
-// Initialize a singleton Elasticsearch client for local instance
-// Reused across tool calls to avoid opening many sockets
-const sharedEsClient = new Client({
-  node: "http://localhost:9200",
-});
+import { sharedEsClient } from "../model";
 
 /**
  * Elasticsearch tool that simulates an ingest pipeline API call

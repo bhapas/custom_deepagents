@@ -1,18 +1,18 @@
 import { ingestPipelineValidatorTool } from "../tools/ingest_pipeline_validator";
-import { SubAgent } from "../types";
+import { SubAgent, SubAgentParams } from "../types";
 import { INGEST_PIPELINE_GENERATOR_PROMPT } from "./prompts";
 
 // SubAgent focused exclusively on generating Elasticsearch ingest pipelines.
 // It must return ONLY a JSON object (no prose) that is a valid pipeline.
-export const ingestPipelineGenerator: SubAgent = {
-  name: "ingest_pipeline_generator",
-  description:
-    "Generates an Elasticsearch ingest pipeline JSON for the provided log samples and documentation.",
-  // IMPORTANT: The prompt enforces JSON-only responses.
-  prompt: INGEST_PIPELINE_GENERATOR_PROMPT,
-tools: [ingestPipelineValidatorTool],
-};
+function ingestPipelineGeneratorAgent(params?: Partial<SubAgentParams>): SubAgent {
+  return {
+    name: params?.name || "ingest_pipeline_generator",
+    description: params?.description ||
+      "Generates an Elasticsearch ingest pipeline JSON for the provided log samples and documentation.",
+    // IMPORTANT: The prompt enforces JSON-only responses.
+    prompt: params?.prompt || INGEST_PIPELINE_GENERATOR_PROMPT,
+    tools: params?.tools || [ingestPipelineValidatorTool],
+  };
+}
 
-export default ingestPipelineGenerator;
-
-
+export const ingestPipelineGenerator: SubAgent = ingestPipelineGeneratorAgent();

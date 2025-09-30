@@ -1,7 +1,7 @@
 // @ts-ignore
 import { createIntegrationAgent } from "./agents/integrationAgent";
-import ingestPipelineGenerator from "./agents/ingest_pipeline_generator";
-import logsAnalyzer from "./agents/logs_analyzer";
+import { ingestPipelineGenerator } from "./agents/ingest_pipeline_generator";
+import { logsAnalyzer } from "./agents/logs_analyzer";
 import { getDefaultModel } from "./model";
 import { logMem } from "./logging";
 import { sampleService } from "./sampleService";
@@ -9,7 +9,7 @@ import "dotenv/config";
 
 async function main() {
   // Initialize the sample service with log samples
-  sampleService.initialize();
+  await sampleService.initialize();
   logMem(`log samples loaded count=${sampleService.getCount()}`);
 
   const agent = createIntegrationAgent({

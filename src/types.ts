@@ -4,6 +4,13 @@ import { StructuredTool } from "@langchain/core/tools";
 import { AnnotationRoot } from "@langchain/langgraph";
 
 
+export interface SubAgentParams {
+  name: string;
+  description: string;
+  prompt: string;
+  tools?: StructuredTool[];
+}
+
 export interface SubAgent {
   name: string;
   description: string;
