@@ -58,7 +58,7 @@ class IndexService {
   /**
    * Write log samples to the index
    */
-  async writeSamples(samples: string[], integrationId: string = "gateway"): Promise<void> {
+  async writeSamples(samples: string[], integrationId: string): Promise<void> {
     try {
       await this.ensureIndexExists();
 

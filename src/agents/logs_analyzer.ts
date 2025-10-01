@@ -1,5 +1,7 @@
 import { SubAgent, SubAgentParams } from "../types";
 import { LOG_ANALYZER_PROMPT } from "./prompts";
+import { fetchSamplesTool } from "../tools/fetch_samples";
+import { verifyJsonFormatTool } from "../tools/verify_json_format";
 
 // SubAgent focused on analyzing raw log samples and summarizing their structure,
 // edge-cases, and nuances. It also pulls in relevant guidance from Elasticsearch
@@ -10,7 +12,7 @@ function logsAnalyzerAgent(params?: Partial<SubAgentParams>): SubAgent {
     description: params?.description ||
       "Analyzes raw log samples to infer structure, fields, formats, and edge-cases; collates relevant Elasticsearch ingest processor documentation to guide parsing.",
     prompt: params?.prompt || LOG_ANALYZER_PROMPT,
-    tools: params?.tools || [],
+    tools: params?.tools || [fetchSamplesTool, verifyJsonFormatTool],
   };
 }
 

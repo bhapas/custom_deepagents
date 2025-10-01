@@ -8,7 +8,7 @@ import { ToolMessage } from "@langchain/core/messages";
 import { Command } from "@langchain/langgraph";
 import { z } from "zod";
 import { logMem } from "../logging";
-import { sampleService } from "../sampleService";
+import { indexService } from "../indexService";
 import { sharedEsClient } from "../model";
 
 /**
@@ -39,6 +39,7 @@ export class ElasticsearchIngestPipelineTool {
     }
   }
 }
+
 // Schema for the tool
 const validatorSchema = z.object({
   pipeline: z
@@ -46,6 +47,10 @@ const validatorSchema = z.object({
       processors: z.array(z.any()).describe("Array of pipeline processors"),
     })
     .describe("The Elasticsearch ingest pipeline configuration"),
+  integrationId: z
+    .string()
+    .default("gateway")
+    .describe("Integration ID to fetch samples from the index"),
   sampleIndex: z
     .number()
     .optional()
@@ -55,14 +60,20 @@ const validatorSchema = z.object({
 // Tool using `tool(func, config)` that returns a Command with ToolMessage
 export const ingestPipelineValidatorTool = tool(
   async (
-    { pipeline, sampleIndex = 0 }: z.infer<typeof validatorSchema>,
+    { pipeline, integrationId = "gateway", sampleIndex = 0 }: z.infer<typeof validatorSchema>,
     config: ToolRunnableConfig
   ) => {
     try {
       const clientTool = new ElasticsearchIngestPipelineTool();
 
-      // Get samples from the singleton service
-      const logSamples = sampleService.getSamples();
+      // Get samples from the Elasticsearch index
+      const logSamples = await indexService.readSamples(integrationId);
+      logMem(`Read ${logSamples.length} samples from index for integration: ${integrationId}`);
+
+      if (logSamples.length === 0) {
+        throw new Error(`No samples found for integration_id: ${integrationId}`);
+      }
+      
       const limitedSamples = logSamples.slice(0, 200);
       const docs = limitedSamples.map((sample, index) => ({
         _source: { message: sample, original_index: index },
@@ -98,59 +109,67 @@ export const ingestPipelineValidatorTool = tool(
       const totalSamples = logSamples.length;
       const successfulCount = successfulMatches.length;
       const failedCount = failedSamples.length;
-      const matchRate =
+      const successRate =
         Math.round((successfulCount / totalSamples) * 100 * 100) / 100;
 
-      const out = {
-        success: failedCount === 0,
-        totalSamples,
-        successfulMatches: successfulCount,
-        failedMatches: failedCount,
-        matchRate,
-        errors: failedSamples.map((f) => f.error),
-        failedSamples,
-        retryNeeded: failedCount > 0,
-        sampleIndex,
-        message:
-          failedCount === 0
-            ? `✅ All ${totalSamples} samples processed successfully!`
-            : `❌ ${failedCount} out of ${totalSamples} samples failed. Retry needed.`,
-      };
-      logMem(`simulate result ready (success=${out.success})`);
+      const message =
+        failedCount === 0
+          ? `✅ All ${totalSamples} samples processed successfully!`
+          : `❌ ${failedCount} out of ${totalSamples} samples failed. Retry needed.`;
+
+      logMem(`simulate result ready (success=${failedCount === 0})`);
 
       return new Command({
         update: {
+          current_pipeline: pipeline,
+          pipeline_validation_results: {
+            pipeline_generation_results: response,
+            success_rate: successRate,
+            successful_samples: successfulCount,
+            failed_samples: failedCount,
+            total_samples: totalSamples,
+            failure_details: failedSamples.slice(0, 100).map((f) => ({
+              error: f.error,
+              sample: f.sample,
+            })),
+          },
           messages: [
             new ToolMessage({
-              content: JSON.stringify(out),
+              content: message,
               tool_call_id: config?.toolCall?.id as string,
             }),
           ],
         },
       });
     } catch (error) {
-      const errOut = {
-        success: false,
-        totalSamples: sampleService.getCount(),
-        successfulMatches: 0,
-        failedMatches: sampleService.getCount(),
-        matchRate: 0,
-        errors: [
-          `Validation error: ${error instanceof Error ? error.message : "Unknown error"}`,
-        ],
-        failedSamples: sampleService.getSamples().map((sample, index) => ({
-          index,
-          sample,
-          error: "Validation failed",
-        })),
-        retryNeeded: true,
-        sampleIndex,
-      };
+      const errorMessage = `Validation error: ${error instanceof Error ? error.message : "Unknown error"}`;
+      
+      // Try to get samples for error reporting
+      let errorSamples: string[] = [];
+      try {
+        errorSamples = await indexService.readSamples(integrationId);
+      } catch {
+        // If we can't read samples, just use empty array
+        errorSamples = [];
+      }
+      
       return new Command({
         update: {
+          current_pipeline: pipeline,
+          pipeline_validation_results: {
+            pipeline_generation_results: {},
+            success_rate: 0,
+            successful_samples: 0,
+            failed_samples: errorSamples.length,
+            total_samples: errorSamples.length,
+            failure_details: errorSamples.slice(0, 100).map((sample) => ({
+              error: errorMessage,
+              sample,
+            })),
+          },
           messages: [
             new ToolMessage({
-              content: JSON.stringify(errOut),
+              content: `Pipeline validation failed: ${errorMessage}`,
               tool_call_id: config?.toolCall?.id as string,
             }),
           ],
@@ -161,7 +180,7 @@ export const ingestPipelineValidatorTool = tool(
     {
       name: "validate_pipeline_all_samples",
       description:
-        "Takes in pipeline as a JSON object and validates it against loaded log samples. Returns detailed failure information for failed samples.",
+        "Takes in pipeline as a JSON object and integration_id, then validates the pipeline against log samples from the Elasticsearch index. Returns detailed failure information for failed samples.",
       schema: validatorSchema,
     }
 );

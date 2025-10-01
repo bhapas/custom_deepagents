@@ -10,7 +10,7 @@ class SampleService {
   private static instance: SampleService;
   private samples: string[] = [];
   private initialized: boolean = false;
-  private readonly integrationId: string = "gateway";
+  private readonly integrationId: string = "mysql";
 
   private constructor() {}
 
@@ -64,6 +64,8 @@ class SampleService {
       // Load samples from files
       this.samples = this.loadLogSamplesFromFiles();
       console.log(`Loaded ${this.samples.length} samples from files`);
+
+      console.log("Samples:", this.samples);
       
       // Write samples to Elasticsearch index
       await this.writeLogSamplesToIndex(this.samples);

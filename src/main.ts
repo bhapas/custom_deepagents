@@ -20,7 +20,7 @@ async function main() {
   logMem("integrationAgent created");
 
   // Get samples reduced to fit within 5000 characters
-  const selectedSamples = sampleService.getReducedSamples(5000);
+  const integrationId = "mysql";
 
   // Example kickoff message. Replace input as needed.
   const response = await agent.invoke(
@@ -28,14 +28,14 @@ async function main() {
       messages: [
         {
           role: "user",
-          content: `Create an ingest pipeline for these logs. Only return a JSON pipeline.\n\nSamples count: ${selectedSamples.length}`,
+          content: `Create an ingest pipeline for the logs in the index with id: ${integrationId}`,
         },
-      ],
-      logSamples: selectedSamples,
+      ]
     },
     { recursionLimit: 100 }
   );
   logMem("agent.invoke completed");
+  console.log(JSON.stringify(response, null, 2));
 }
 
 main().catch((err) => {

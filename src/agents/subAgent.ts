@@ -2,7 +2,7 @@
 import { z } from "zod";
 import { LanguageModelLike, SubAgent } from "../types";
 import { ToolRunnableConfig, tool } from "@langchain/core/tools";
-import { ToolMessage } from "@langchain/core/messages";
+import { BaseMessage, ToolMessage } from "@langchain/core/messages";
 import { Command, getCurrentTaskInput } from "@langchain/langgraph";
 import { createReactAgent } from "@langchain/langgraph/prebuilt";
 import { getDefaultModel } from "../model";
@@ -14,10 +14,7 @@ export const createTaskTool = (inputs: {
   subagents: SubAgent[];
   model: LanguageModelLike;
 }) => {
-  const {
-    subagents,
-    model = getDefaultModel(),
-  } = inputs;
+  const { subagents, model = getDefaultModel() } = inputs;
   const agentsMap = new Map<string, any>();
   for (const subagent of subagents) {
     // Create react agent for the subagent
@@ -47,15 +44,12 @@ export const createTaskTool = (inputs: {
       }
 
       try {
-        const currentState = getCurrentTaskInput<z.infer<typeof SubAgentState>>();
+        const currentState =
+          getCurrentTaskInput<z.infer<typeof SubAgentState>>();
 
-        // Modify state messages and pass logSamples
         const modifiedState = {
+          ...currentState,
           messages: [
-            {
-              role: "system",
-              content: `Here are the log samples:\n\n${currentState.logSamples.join("\n")})`,
-            },
             {
               role: "user",
               content: description,
