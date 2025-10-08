@@ -6,6 +6,9 @@ import { getDefaultModel } from "./model";
 import { logMem } from "./logging";
 import { sampleService } from "./sampleService";
 import "dotenv/config";
+import { textToEcs } from "./agents/text_to_ecs";
+import { getUniqueFieldsTool } from "./tools/unique_fields";
+import { retrieveCurrentPipelineTool } from "./tools/retrieve_current_pipeline";
 
 async function main() {
   // Initialize the sample service with log samples
@@ -14,8 +17,8 @@ async function main() {
 
   const agent = createIntegrationAgent({
     model: getDefaultModel(),
-    subagents: [ingestPipelineGenerator, logsAnalyzer],
-    baseAgentTools: [],
+    subagents: [ingestPipelineGenerator, textToEcs],
+    baseAgentTools: [getUniqueFieldsTool, retrieveCurrentPipelineTool],
   });
   logMem("integrationAgent created");
 
@@ -30,12 +33,11 @@ async function main() {
           role: "user",
           content: `Create an ingest pipeline for the logs in the index with id: ${integrationId}`,
         },
-      ]
+      ],
     },
     { recursionLimit: 100 }
   );
   logMem("agent.invoke completed");
-  console.log(JSON.stringify(response, null, 2));
 }
 
 main().catch((err) => {

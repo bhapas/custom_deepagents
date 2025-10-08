@@ -2,9 +2,8 @@
 import { getDefaultModel } from "../model";
 import { createReactAgent } from "@langchain/langgraph/prebuilt";
 import { createTaskTool } from "./subAgent";
-import { DeepAgentState, SubAgentState } from "../state";
+import { IntegrationAgentState } from "../state";
 import { CreateIntegrationAgentParams } from "../types";
-import { BUILTIN_TOOLS } from "../tools";
 import { StructuredTool } from "@langchain/core/tools";
 import { INTEGRATION_CREATION_SUPERVISOR_PROMPT } from "./prompts";
 
@@ -13,7 +12,7 @@ export const createIntegrationAgent = (
 ) => {
   const { baseAgentTools = [], model = getDefaultModel(), subagents = [] } = params;
 
-  const stateSchema = DeepAgentState;
+  const stateSchema = IntegrationAgentState;
   const allTools: StructuredTool[] = baseAgentTools;
 
   const taskTool = createTaskTool({
@@ -23,10 +22,10 @@ export const createIntegrationAgent = (
   allTools.push(taskTool);
 
   // Return createReactAgent with proper configuration
-  return createReactAgent<typeof stateSchema, Record<string, any>>({
+  return createReactAgent<typeof stateSchema, typeof IntegrationAgentState>({
     name: "integration_supervisor",
     llm: model,
-    tools: allTools,
+    tools: allTools as any,
     stateSchema,
     messageModifier: INTEGRATION_CREATION_SUPERVISOR_PROMPT,
   });

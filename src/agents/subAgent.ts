@@ -1,18 +1,19 @@
 // @ts-ignore
 import { z } from "zod";
-import { LanguageModelLike, SubAgent } from "../types";
+import { SubAgent } from "../types";
 import { ToolRunnableConfig, tool } from "@langchain/core/tools";
 import { BaseMessage, ToolMessage } from "@langchain/core/messages";
 import { Command, getCurrentTaskInput } from "@langchain/langgraph";
-import { createReactAgent } from "@langchain/langgraph/prebuilt";
+import { ToolNode, createReactAgent } from "@langchain/langgraph/prebuilt";
 import { getDefaultModel } from "../model";
 import { logMem } from "../logging";
 import { TASK_TOOL_DESCRIPTION } from "./prompts";
-import { SubAgentState } from "../state";
+import { IntegrationAgentState } from "../state";
+import { ChatBedrockConverse } from "@langchain/aws";
 
 export const createTaskTool = (inputs: {
   subagents: SubAgent[];
-  model: LanguageModelLike;
+  model: ChatBedrockConverse;
 }) => {
   const { subagents, model = getDefaultModel() } = inputs;
   const agentsMap = new Map<string, any>();
@@ -22,8 +23,9 @@ export const createTaskTool = (inputs: {
 
     const reactAgent = createReactAgent({
       llm: model,
-      tools: subagent.tools || [],
+      tools: (subagent.tools || []) as any,
       messageModifier: subagent.prompt,
+      stateSchema: IntegrationAgentState,
     });
     logMem(`createReactAgent done: ${subagent.name}`);
 
@@ -35,55 +37,44 @@ export const createTaskTool = (inputs: {
       input: { description: string; subagent_name: string },
       config: ToolRunnableConfig
     ) => {
-      const { description, subagent_name } = input;
+      const state = IntegrationAgentState;
+      const tool_call_id = config?.toolCall?.id as string;
+      const subAgent = agentsMap.get(input.subagent_name);
 
-      // Get the pre-created agent
-      const reactAgent = agentsMap.get(subagent_name);
-      if (!reactAgent) {
-        return `Error: Agent '${subagent_name}' not found. Available agents: ${Array.from(agentsMap.keys()).join(", ")}`;
-      }
+      const modifiedState = {
+        ...state,
+        messages: [{ role: "user", content: input.description }],
+      };
 
       try {
-        const currentState =
-          getCurrentTaskInput<z.infer<typeof SubAgentState>>();
+        const result = await subAgent.invoke(modifiedState);
 
-        const modifiedState = {
-          ...currentState,
-          messages: [
-            {
-              role: "user",
-              content: description,
-            },
-          ],
-        };
+        // Prepare state update (excluding "messages")
+        const state_update: Partial<typeof IntegrationAgentState> = {};
+        for (const [k, v] of Object.entries(result)) {
+          if (k !== "messages") {
+            state_update[k] = v;
+          }
+        }
 
-        // Execute the subagent with the task
-        logMem(`invoke start: ${subagent_name}`);
-        const result = await reactAgent.invoke(modifiedState, config);
-        logMem(`invoke done: ${subagent_name}`);
-
-        // Use Command for state updates and navigation between agents
-        // Return the result using Command to properly handle subgraph state
         return new Command({
           update: {
+            ...state_update,
             messages: [
               new ToolMessage({
                 content: result.messages?.slice(-1)[0]?.content,
-                tool_call_id: config.toolCall?.id as string,
+                tool_call_id,
               }),
             ],
           },
         });
-      } catch (error) {
-        // Handle errors gracefully
-        const errorMessage =
-          error instanceof Error ? error.message : String(error);
+      } catch (e) {
         return new Command({
           update: {
             messages: [
               new ToolMessage({
-                content: `Error executing task '${description}' with agent '${subagent_name}': ${errorMessage}`,
-                tool_call_id: config.toolCall?.id as string,
+                content: `Error executing task with ${input.subagent_name}: ${String(e)}`,
+                tool_call_id,
               }),
             ],
           },

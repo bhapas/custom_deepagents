@@ -60,7 +60,11 @@ const validatorSchema = z.object({
 // Tool using `tool(func, config)` that returns a Command with ToolMessage
 export const ingestPipelineValidatorTool = tool(
   async (
-    { pipeline, integrationId = "gateway", sampleIndex = 0 }: z.infer<typeof validatorSchema>,
+    {
+      pipeline,
+      integrationId,
+      sampleIndex = 0,
+    }: z.infer<typeof validatorSchema>,
     config: ToolRunnableConfig
   ) => {
     try {
@@ -68,12 +72,16 @@ export const ingestPipelineValidatorTool = tool(
 
       // Get samples from the Elasticsearch index
       const logSamples = await indexService.readSamples(integrationId);
-      logMem(`Read ${logSamples.length} samples from index for integration: ${integrationId}`);
+      logMem(
+        `Read ${logSamples.length} samples from index for integration: ${integrationId}`
+      );
 
       if (logSamples.length === 0) {
-        throw new Error(`No samples found for integration_id: ${integrationId}`);
+        throw new Error(
+          `No samples found for integration_id: ${integrationId}`
+        );
       }
-      
+
       const limitedSamples = logSamples.slice(0, 200);
       const docs = limitedSamples.map((sample, index) => ({
         _source: { message: sample, original_index: index },
@@ -122,8 +130,9 @@ export const ingestPipelineValidatorTool = tool(
       return new Command({
         update: {
           current_pipeline: pipeline,
+          pipeline_generation_results: response,
+          failure_count: failedCount,
           pipeline_validation_results: {
-            pipeline_generation_results: response,
             success_rate: successRate,
             successful_samples: successfulCount,
             failed_samples: failedCount,
@@ -143,7 +152,7 @@ export const ingestPipelineValidatorTool = tool(
       });
     } catch (error) {
       const errorMessage = `Validation error: ${error instanceof Error ? error.message : "Unknown error"}`;
-      
+
       // Try to get samples for error reporting
       let errorSamples: string[] = [];
       try {
@@ -152,21 +161,9 @@ export const ingestPipelineValidatorTool = tool(
         // If we can't read samples, just use empty array
         errorSamples = [];
       }
-      
+
       return new Command({
         update: {
-          current_pipeline: pipeline,
-          pipeline_validation_results: {
-            pipeline_generation_results: {},
-            success_rate: 0,
-            successful_samples: 0,
-            failed_samples: errorSamples.length,
-            total_samples: errorSamples.length,
-            failure_details: errorSamples.slice(0, 100).map((sample) => ({
-              error: errorMessage,
-              sample,
-            })),
-          },
           messages: [
             new ToolMessage({
               content: `Pipeline validation failed: ${errorMessage}`,
@@ -177,10 +174,10 @@ export const ingestPipelineValidatorTool = tool(
       });
     }
   },
-    {
-      name: "validate_pipeline_all_samples",
-      description:
-        "Takes in pipeline as a JSON object and integration_id, then validates the pipeline against log samples from the Elasticsearch index. Returns detailed failure information for failed samples.",
-      schema: validatorSchema,
-    }
+  {
+    name: "validate_pipeline_all_samples",
+    description:
+      "Takes in pipeline as a JSON object and integration_id, then validates the pipeline against log samples from the Elasticsearch index. Returns detailed failure information for failed samples.",
+    schema: validatorSchema,
+  }
 );

@@ -1,10 +1,9 @@
 import { ChatBedrockConverse } from "@langchain/aws";
-import { LanguageModelLike } from "./types";
 import { Client } from "@elastic/elasticsearch";
 
-export function getDefaultModel(): LanguageModelLike {
+export function getDefaultModel(): ChatBedrockConverse {
   return new ChatBedrockConverse({
-    model: "us.anthropic.claude-sonnet-4-5-20250929-v1:0",
+    model: "us.anthropic.claude-sonnet-4-20250514-v1:0",
     maxTokens: 4096,
   });
 }
